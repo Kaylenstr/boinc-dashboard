@@ -8,25 +8,39 @@ Web dashboard for monitoring BOINC clients over GUI RPC (port 31416).
 - This machine can reach your BOINC clients on the network
 - Each client lists this host in `remote_hosts.cfg`
 
-## Install
+## Quick install (Linux)
+
+```bash
+chmod +x install.sh run.sh
+./install.sh
+./run.sh
+```
+
+Open `http://<server-ip-or-hostname>:8770`
+
+Run on boot (systemd):
+
+```bash
+./install.sh --service
+```
+
+The install script creates `.venv`, installs dependencies, generates `BOINC_DASHBOARD_KEY` in `.env` if missing, and creates `data/`.
+
+## Manual install
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # Linux
+source .venv/bin/activate
 
 pip install -r requirements.txt
-copy .env.example .env        # Windows
-# cp .env.example .env        # Linux
+cp .env.example .env
 ```
 
-Generate a key for `.env`:
+Generate a key and put it in `.env`:
 
 ```bash
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
-
-Minimum settings:
 
 ```
 BOINC_DASHBOARD_KEY=your-generated-key
@@ -34,16 +48,11 @@ DATA_DIR=./data
 PORT=8770
 ```
 
-Load env vars and start (PowerShell example):
-
-```powershell
-Get-Content .env | ForEach-Object {
-  if ($_ -match '^(.*?)=(.*)$') { Set-Item -Path env:$($matches[1]) -Value $matches[2] }
-}
+```bash
 python app.py
 ```
 
-The app listens on all interfaces (`0.0.0.0`) on the port above. Open `http://<server-ip-or-hostname>:8770` from your browser (replace with the machine where you run this).
+The app reads `.env` on startup and listens on all interfaces (`0.0.0.0`).
 
 ## Security
 

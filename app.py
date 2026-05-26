@@ -8,6 +8,24 @@ from flask import Flask, request, jsonify, render_template
 from boinc_rpc import BoincRPC, BoincError, BoincAuthError
 import store
 
+
+def _load_dotenv():
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if not os.path.isfile(path):
+        return
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            if key and key not in os.environ:
+                os.environ[key] = value.strip()
+
+
+_load_dotenv()
+
 DATA_DIR = os.environ.get("DATA_DIR", "./data")
 store.DATA_DIR = DATA_DIR
 store.SERVERS_FILE = os.path.join(DATA_DIR, "servers.json")
