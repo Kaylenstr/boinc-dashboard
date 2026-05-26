@@ -43,7 +43,7 @@ Get-Content .env | ForEach-Object {
 python app.py
 ```
 
-Open http://127.0.0.1:8770
+The app listens on all interfaces (`0.0.0.0`) on the port above. Open `http://<server-ip-or-hostname>:8770` from your browser (replace with the machine where you run this).
 
 ## Security
 
