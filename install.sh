@@ -2,40 +2,19 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-cd "$ROOT"
+NO_START=0
 
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "python3 is required"
-  exit 1
-fi
+for arg in "$@"; do
+  if [ "$arg" = "--no-start" ]; then
+    NO_START=1
+  fi
+done
 
-python3 -m venv .venv
-.venv/bin/pip install -q -r requirements.txt
+bash "$ROOT/install/preflight.sh"
+bash "$ROOT/install/setup.sh"
 
-if [ ! -f .env ]; then
-  cp .env.example .env
-  KEY="$(.venv/bin/python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")"
-  sed -i "s|replace-with-output-of-fernet-generate-key|${KEY}|" .env
-  echo "Created .env with a new BOINC_DASHBOARD_KEY"
+if [ "$NO_START" -eq 0 ]; then
+  bash "$ROOT/install/start.sh"
 else
-  echo ".env already exists, left unchanged"
+  echo "Install done. Start with: bash run.sh"
 fi
-
-mkdir -p data
-
-if [ "${1:-}" = "--service" ]; then
-  UNIT="/etc/systemd/system/boinc-dashboard.service"
-  sed "s|@INSTALL_DIR@|${ROOT}|g" boinc-dashboard.service | sudo tee "$UNIT" >/dev/null
-  sudo systemctl daemon-reload
-  sudo systemctl enable --now boinc-dashboard
-  echo "Service installed. Status: sudo systemctl status boinc-dashboard"
-  exit 0
-fi
-
-echo
-echo "Install done."
-echo "  ./run.sh"
-echo "  http://<server-ip-or-hostname>:8770"
-echo
-echo "Optional systemd service:"
-echo "  ./install.sh --service"

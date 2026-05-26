@@ -2,64 +2,34 @@
 
 Web dashboard for monitoring BOINC clients over GUI RPC (port 31416).
 
+## Install
+
+```bash
+git clone https://github.com/Kaylenstr/boinc-dashboard.git
+cd boinc-dashboard
+bash install.sh
+```
+
+One command after clone. On Debian/Ubuntu the script installs missing system packages (`python3`, `python3-venv`), sets up the app, and starts it. With systemd it runs as your user under `boinc-dashboard.service`.
+
+Open the URL printed at the end.
+
+- `bash run.sh` - foreground (testing)
+- `bash stop.sh` - stop background process or systemd service
+
+Install steps: `install/preflight.sh`, `install/setup.sh`, `install/start.sh`.
+
 ## Requirements
 
-- Python 3.10+
+- Debian/Ubuntu for automatic system package install
 - This machine can reach your BOINC clients on the network
 - Each client lists this host in `remote_hosts.cfg`
-
-## Quick install (Linux)
-
-```bash
-chmod +x install.sh run.sh
-./install.sh
-./run.sh
-```
-
-Open `http://<server-ip-or-hostname>:8770`
-
-Run on boot (systemd):
-
-```bash
-./install.sh --service
-```
-
-The install script creates `.venv`, installs dependencies, generates `BOINC_DASHBOARD_KEY` in `.env` if missing, and creates `data/`.
-
-## Manual install
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-
-pip install -r requirements.txt
-cp .env.example .env
-```
-
-Generate a key and put it in `.env`:
-
-```bash
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-```
-BOINC_DASHBOARD_KEY=your-generated-key
-DATA_DIR=./data
-PORT=8770
-```
-
-```bash
-python app.py
-```
-
-The app reads `.env` on startup and listens on all interfaces (`0.0.0.0`).
 
 ## Security
 
 - RPC passwords are stored encrypted in `data/servers.json` (needs `BOINC_DASHBOARD_KEY`).
 - Do not commit `.env` or `data/servers.json`.
 - There is no login on the dashboard itself. Keep it on LAN, Tailscale, or behind a proxy with auth.
-- Old plain `password` fields in `servers.json` are converted to encrypted `secret` on first load.
 
 ## Data
 
