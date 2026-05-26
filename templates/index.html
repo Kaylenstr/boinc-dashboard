@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BOINC Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #171a22;
+    --surface2: #1e222d;
+    --border: #2a3142;
+    --border-soft: #222836;
+    --text: #e8ecf4;
+    --muted: #8b95a8;
+    --faint: #5c6578;
+    --accent: #5b9cf5;
+    --accent-soft: rgba(91, 156, 245, .12);
+    --ok: #3ecf8e;
+    --ok-soft: rgba(62, 207, 142, .12);
+    --warn: #e5a84b;
+    --warn-soft: rgba(229, 168, 75, .12);
+    --bad: #ef6b6b;
+    --bad-soft: rgba(239, 107, 107, .12);
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.18);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 24px 20px 64px;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+
+  .brand h1 {
+    font-size: 1.35rem;
+    font-weight: 650;
+    letter-spacing: -.02em;
+  }
+
+  .brand p {
+    color: var(--muted);
+    font-size: .85rem;
+    margin-top: 2px;
+  }
+
+  .top-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .last-sync {
+    color: var(--faint);
+    font-size: .78rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .btn {
+    appearance: none;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font: inherit;
+    font-size: .88rem;
+    font-weight: 550;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { filter: brightness(1.08); }
+
+  .btn-ghost {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+
+  .stat .label {
+    color: var(--muted);
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-weight: 600;
+  }
+
+  .stat .value {
+    margin-top: 4px;
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -.03em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat .value.blue { color: var(--accent); }
+  .stat .value.green { color: var(--ok); }
+
+  .fleet-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .fleet-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    min-width: 0;
+    max-width: 220px;
+    flex: 1 1 140px;
+  }
+  .fleet-pill:hover { border-color: var(--accent); background: var(--surface2); }
+  .fleet-pill .fp-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex: none;
+    background: var(--faint);
+  }
+  .fleet-pill.online .fp-dot { background: var(--ok); box-shadow: 0 0 0 2px var(--ok-soft); }
+  .fleet-pill.offline .fp-dot { background: var(--bad); box-shadow: 0 0 0 2px var(--bad-soft); }
+  .fleet-pill .fp-name {
+    font-weight: 600; font-size: .86rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .fleet-pill .fp-sub { font-size: .72rem; color: var(--muted); white-space: nowrap; }
+
+  .servers { display: flex; flex-direction: column; gap: 10px; }
+
+  details.server {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  details.server > summary.server-head {
+    list-style: none;
+    cursor: pointer;
+  }
+  details.server > summary.server-head::-webkit-details-marker { display: none; }
+  details.server:not([open]) > summary.server-head { border-bottom: none; }
+  details.server[open] > summary.server-head { border-bottom: 1px solid var(--border-soft); }
+
+  .server-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: linear-gradient(180deg, var(--surface2), var(--surface));
+  }
+  .server-head::after {
+    content: '>';
+    color: var(--faint);
+    font-size: 1.1rem;
+    transform: rotate(90deg);
+    transition: transform .15s;
+    flex: none;
+    margin-left: 4px;
+  }
+  details.server[open] > summary.server-head::after { transform: rotate(-90deg); }
+
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--faint);
+  }
+  .status-dot.online { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
+  .status-dot.offline { background: var(--bad); box-shadow: 0 0 0 3px var(--bad-soft); }
+
+  .server-title { min-width: 0; flex: 1; }
+  .server-title .name {
+    font-weight: 650;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .server-title .host {
+    color: var(--muted);
+    font-size: .78rem;
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    margin-top: 1px;
+  }
+
+  .badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .badge {
+    font-size: .72rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .badge.ok { color: var(--ok); border-color: rgba(62,207,142,.35); background: var(--ok-soft); }
+  .badge.warn { color: var(--warn); border-color: rgba(229,168,75,.35); background: var(--warn-soft); }
+
+  .icon-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--faint);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    transition: .15s;
+  }
+  .icon-btn:hover { background: var(--bad-soft); color: var(--bad); }
+
+  .server-body { padding: 18px; }
+
+  .error-box {
+    color: var(--bad);
+    background: var(--bad-soft);
+    border: 1px solid rgba(239,107,107,.25);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: .88rem;
+  }
+
+  .host-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .host-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .host-chip .k { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+  .host-chip .v { margin-top: 3px; font-size: .88rem; font-weight: 550; }
+
+  .section { margin-top: 20px; }
+  .section:first-child { margin-top: 0; }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .section-head h3 {
+    font-size: .82rem;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+  }
+
+  .section-head span { color: var(--faint); font-size: .78rem; }
+
+  details.panel {
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    background: var(--surface2);
+    margin-bottom: 16px;
+  }
+  details.panel summary {
+    cursor: pointer;
+    padding: 10px 12px;
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--muted);
+    list-style: none;
+  }
+  details.panel summary::-webkit-details-marker { display: none; }
+  details.panel summary::after {
+    content: '>';
+    float: right;
+    color: var(--faint);
+    transform: rotate(90deg);
+    transition: transform .15s;
+  }
+  details.panel[open] summary::after { transform: rotate(-90deg); }
+  details.panel[open] summary { border-bottom: 1px solid var(--border-soft); color: var(--text); }
+  details.panel .panel-body { padding: 10px 12px 12px; }
+  details.panel + details.panel { margin-top: 8px; }
+  details.panel:last-child { margin-bottom: 0; }
+
+  .server-peek {
+    font-size: .82rem;
+    color: var(--muted);
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .task-filters {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .task-filters button {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 4px 11px;
+    font: inherit;
+    font-size: .74rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .task-filters button.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .table-wrap {
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+  th {
+    text-align: left;
+    padding: 10px 12px;
+    background: var(--surface2);
+    color: var(--muted);
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  th.num, td.num { text-align: right; }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.015); }
+
+  .proj-name { font-weight: 550; }
+  .tag {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: .68rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 999px;
+  }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.bad { background: var(--bad-soft); color: var(--bad); }
+
+  .link-btn {
+    color: var(--accent);
+    cursor: pointer;
+    font-size: .82rem;
+    font-weight: 550;
+    border: none;
+    background: none;
+    font: inherit;
+  }
+  .link-btn:hover { text-decoration: underline; }
+
+  .task-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .task-item {
+    display: grid;
+    grid-template-columns: 1fr minmax(120px, 180px) 72px 88px auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    border-left: 3px solid transparent;
+  }
+  .task-item.is-running {
+    border-left-color: var(--ok);
+    background: linear-gradient(90deg, var(--ok-soft), var(--surface2) 40%);
+  }
+  .task-item.is-running .progress-bar { height: 8px; }
+  .task-item.is-running .progress-bar > i {
+    background: linear-gradient(90deg, var(--ok), #6ee7a8);
+  }
+
+  @media (max-width: 720px) {
+    .task-item {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+  }
+
+  .task-name .title {
+    font-weight: 550;
+    font-size: .88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .task-name .project {
+    color: var(--muted);
+    font-size: .76rem;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .progress-wrap { min-width: 0; }
+  .progress-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: .72rem;
+    color: var(--muted);
+    margin-bottom: 5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .progress-bar {
+    height: 6px;
+    background: var(--bg);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-bar > i {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #7eb8ff);
+    border-radius: 999px;
+    transition: width .35s ease;
+  }
+
+  .state {
+    text-align: center;
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: 5px 0;
+    border-radius: 6px;
+  }
+  .state.run { color: var(--ok); background: var(--ok-soft); }
+  .state.susp { color: var(--warn); background: var(--warn-soft); }
+  .state.wait { color: var(--muted); background: rgba(139,149,168,.1); }
+  .state.rdy { color: var(--accent); background: var(--accent-soft); }
+
+  .task-time {
+    font-size: .74rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.35;
+  }
+
+  .task-ctl {
+    min-width: 52px;
+    height: 32px;
+    padding: 0 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    font-size: .72rem;
+    font-weight: 600;
+    transition: .15s;
+  }
+  .task-ctl:hover { border-color: var(--accent); color: var(--accent); }
+  .task-ctl:disabled { opacity: .35; cursor: default; }
+
+  .empty {
+    color: var(--faint);
+    font-size: .88rem;
+    padding: 24px 16px;
+    text-align: center;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+  }
+
+  .empty-page {
+    text-align: center;
+    padding: 72px 24px;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+  .empty-page h2 { font-size: 1.1rem; margin-bottom: 8px; }
+  .empty-page p { color: var(--muted); margin-bottom: 20px; }
+
+  .spin {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    vertical-align: -2px;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 10, 14, .72);
+    backdrop-filter: blur(4px);
+    display: none;
+    place-items: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .overlay.show { display: grid; }
+
+  .modal {
+    width: 100%;
+    max-width: 440px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 24px;
+  }
+
+  .modal h2 { font-size: 1.15rem; margin-bottom: 6px; }
+  .modal .hint { color: var(--muted); font-size: .84rem; margin-bottom: 18px; line-height: 1.45; }
+
+  label {
+    display: block;
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin: 14px 0 6px;
+  }
+
+  input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font: inherit;
+    font-size: .9rem;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  input:focus { border-color: var(--accent); }
+
+  .row2 { display: flex; gap: 10px; }
+  .row2 > * { flex: 1; }
+  .row2 .port { flex: 0 0 100px; }
+
+  .formerr { color: var(--bad); font-size: .82rem; min-height: 18px; margin-top: 12px; }
+
+  .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
+  .modal-actions .btn { flex: 1; text-align: center; padding: 10px; }
+
+  footer {
+    margin-top: 32px;
+    text-align: center;
+    color: var(--faint);
+    font-size: .75rem;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="topbar">
+    <div class="brand">
+      <h1>BOINC Dashboard</h1>
+      <p>Monitor your BOINC clients via GUI RPC</p>
+    </div>
+    <div class="top-actions">
+      <span class="last-sync" id="lastSync"></span>
+      <button class="btn btn-primary" id="addBtn">Add server</button>
+    </div>
+  </header>
+
+  <div class="summary" id="summary"></div>
+  <div class="fleet-row" id="fleetRow" hidden></div>
+  <div class="servers" id="servers"></div>
+
+  <footer>GUI RPC port 31416 | auto-refresh every 15s</footer>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2>Add BOINC server</h2>
+    <p class="hint">Connects via GUI RPC. Add this machine's IP to <code>remote_hosts.cfg</code> on the client.</p>
+    <label for="f_name">Display name</label>
+    <input id="f_name" placeholder="e.g. compute-01" autocomplete="off">
+    <div class="row2">
+      <div>
+        <label for="f_host">Host / IP</label>
+        <input id="f_host" placeholder="10.0.0.12" autocomplete="off">
+      </div>
+      <div class="port">
+        <label for="f_port">Port</label>
+        <input id="f_port" value="31416" autocomplete="off">
+      </div>
+    </div>
+    <label for="f_pass">GUI RPC password</label>
+    <input id="f_pass" type="password" placeholder="from gui_rpc_auth.cfg" autocomplete="off">
+    <div class="formerr" id="formerr"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="cancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn">Connect and save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const fmtCredit = n => n >= 1e6 ? (n/1e6).toFixed(2)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'k' : Math.round(n).toLocaleString();
+const fmtBytes = b => b ? (b/1e9).toFixed(0)+' GB' : '-';
+
+function fmtDur(s) {
+  s = Math.max(0, Math.round(s));
+  const d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60);
+  if (d) return d+'d '+h+'h';
+  if (h) return h+'h '+m+'m';
+  return m+'m';
+}
+
+function taskState(r) {
+  if (r.ready_to_report) return ['rdy', 'Ready'];
+  if (r.active_task_state === 9 || r.suspended_via_gui) return ['susp', 'Paused'];
+  if (r.active_task_state === 1) return ['run', 'Running'];
+  if (r.active) return ['wait', 'Waiting'];
+  return ['wait', 'Queued'];
+}
+
+function taskSortKey(r) {
+  if (r.active_task_state === 1) return 0;
+  if (r.active_task_state === 9) return 1;
+  if (r.ready_to_report) return 2;
+  if (r.active) return 3;
+  return 4;
+}
+
+function esc(s) {
+  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function setLastSync() {
+  const t = new Date();
+  $('#lastSync').textContent = 'Updated '+t.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+const statusCache = {};
+const openPanels = {};
+let taskFilter = 'all';
+
+function panelOpen(id, key) {
+  return openPanels[id + ':' + key] ? ' open' : '';
+}
+
+function syncPanel(id, key) {
+  if (key === 'server') {
+    const el = document.getElementById('card-' + id);
+    if (el && el.tagName === 'DETAILS') openPanels[id + ':server'] = el.open;
+    return;
+  }
+  const el = document.getElementById('panel-' + key + '-' + id);
+  if (el) openPanels[id + ':' + key] = el.open;
+}
+
+function taskMatchesFilter(r, filter) {
+  if (filter === 'all') return true;
+  if (filter === 'active') return r.active_task_state === 1;
+  if (filter === 'paused') return r.active_task_state === 9 || r.suspended_via_gui;
+  if (filter === 'other') return r.active_task_state !== 1 && r.active_task_state !== 9 && !r.suspended_via_gui;
+  return true;
+}
+
+function renderFleet() {
+  const row = $('#fleetRow');
+  if (!servers.length) { row.hidden = true; return; }
+  row.hidden = false;
+  row.innerHTML = servers.map(s => {
+    const d = statusCache[s.id];
+    const online = d && d.online;
+    const cls = !d ? '' : online ? 'online' : 'offline';
+    const sub = !d ? '...' : online
+      ? (d.summary.running ? d.summary.running + ' running' : 'idle')
+      : 'offline';
+    return `<div class="fleet-pill ${cls}" onclick="scrollToServer('${s.id}')">
+      <span class="fp-dot"></span>
+      <div style="min-width:0">
+        <div class="fp-name">${esc(s.name)}</div>
+        <div class="fp-sub">${sub}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function scrollToServer(id) {
+  const el = document.getElementById('card-' + id);
+  if (el && el.tagName === 'DETAILS') {
+    el.open = true;
+    openPanels[id + ':server'] = true;
+  }
+  el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function setTaskFilter(f) {
+  taskFilter = f;
+  servers.forEach(s => {
+    const d = statusCache[s.id];
+    if (d) renderServer(s, d);
+  });
+}
+
+function renderTaskRow(s, r, nameByUrl) {
+  const [cls, label] = taskState(r);
+  const pct = r.fraction_done * 100;
+  const isRunning = r.active_task_state === 1;
+  const isSusp = r.active_task_state === 9;
+  const ctlOp = isRunning ? 'suspend_result' : (isSusp ? 'resume_result' : null);
+  const ctlLabel = isRunning ? 'Pause' : (isSusp ? 'Resume' : '-');
+  const ctlTitle = isRunning ? 'Pause task' : (isSusp ? 'Resume task' : '');
+  return `
+  <div class="task-item${isRunning ? ' is-running' : ''}">
+    <div class="task-name">
+      <div class="title">${esc(r.name)}</div>
+      <div class="project">${esc(nameByUrl[r.project_url] || r.project_url)}</div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-top"><span>Progress</span><span>${pct.toFixed(1)}%</span></div>
+      <div class="progress-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
+    </div>
+    <div class="state ${cls}">${label}</div>
+    <div class="task-time">${fmtDur(r.elapsed_time)}<br>${fmtDur(r.estimated_remaining)} left</div>
+    <button class="task-ctl" title="${ctlTitle}" ${ctlOp ? `onclick="ctl('${s.id}','${ctlOp}','${esc(r.project_url)}','${esc(r.name)}')"` : 'disabled'}>${ctlLabel}</button>
+  </div>`;
+}
+
+let servers = [];
+
+async function loadServers() {
+  servers = await (await fetch('/api/servers')).json();
+  if (!servers.length) {
+    $('#summary').innerHTML = '';
+    $('#fleetRow').hidden = true;
+    $('#servers').innerHTML = `
+      <div class="empty-page">
+        <h2>No servers yet</h2>
+        <p>Add your first BOINC client to see status, projects, and tasks.</p>
+        <button class="btn btn-primary" onclick="openModal()">Add server</button>
+      </div>`;
+    return;
+  }
+
+  $('#servers').innerHTML = servers.map(s => `
+    <details class="server" id="card-${s.id}">
+      <summary class="server-head">
+        <span class="status-dot" id="dot-${s.id}"></span>
+        <div class="server-title">
+          <div class="name">${esc(s.name)}</div>
+          <div class="host">${esc(s.host)}:${s.port}</div>
+        </div>
+        <div class="badges" id="meta-${s.id}">
+          <span class="badge"><span class="spin"></span> Connecting...</span>
+        </div>
+        <button class="icon-btn" title="Remove" onclick="event.stopPropagation(); removeServer('${s.id}','${esc(s.name)}')">X</button>
+      </summary>
+      <div class="server-body" id="body-${s.id}">
+        <div class="empty">Loading...</div>
+      </div>
+    </details>`).join('');
+  refreshAll();
+}
+
+async function refreshAll() {
+  const stats = { tasks: 0, running: 0, done: 0, credit: 0, online: 0 };
+  await Promise.all(servers.map(async s => {
+    try {
+      const d = await (await fetch(`/api/servers/${s.id}/status`)).json();
+      statusCache[s.id] = d;
+      renderServer(s, d);
+      if (d.online) {
+        stats.online++;
+        stats.tasks += d.summary.tasks_total;
+        stats.running += d.summary.running;
+        stats.done += d.summary.jobs_done;
+        stats.credit += d.summary.total_credit;
+      }
+    } catch (e) {
+      statusCache[s.id] = { online: false, error: 'Request failed' };
+      renderServer(s, statusCache[s.id]);
+    }
+  }));
+
+  renderFleet();
+
+  if (servers.length) {
+    $('#summary').innerHTML = `
+      <div class="stat"><div class="label">Online</div><div class="value green">${stats.online}<span style="font-size:.9rem;color:var(--muted);font-weight:500"> / ${servers.length}</span></div></div>
+      <div class="stat"><div class="label">Tasks</div><div class="value blue">${stats.tasks}</div></div>
+      <div class="stat"><div class="label">Running</div><div class="value">${stats.running}</div></div>
+      <div class="stat"><div class="label">Jobs done</div><div class="value">${stats.done.toLocaleString()}</div></div>
+      <div class="stat"><div class="label">Total credit</div><div class="value blue">${fmtCredit(stats.credit)}</div></div>`;
+  }
+  setLastSync();
+}
+
+function renderServer(s, d) {
+  const card = $(`#card-${s.id}`), dot = $(`#dot-${s.id}`), meta = $(`#meta-${s.id}`), body = $(`#body-${s.id}`);
+  if (!dot) return;
+
+  syncPanel(s.id, 'server');
+  syncPanel(s.id, 'running');
+  syncPanel(s.id, 'tasks');
+  syncPanel(s.id, 'projects');
+  syncPanel(s.id, 'host');
+  if (card && card.tagName === 'DETAILS') {
+    card.open = !!openPanels[s.id + ':server'];
+  }
+
+  if (!d.online) {
+    dot.className = 'status-dot offline';
+    meta.innerHTML = `<span class="badge warn">Offline</span>`;
+    body.innerHTML = `<div class="error-box">${esc(d.error || 'Unreachable')}</div>`;
+    return;
+  }
+  dot.className = 'status-dot online';
+
+  const cpuMode = d.cc_status.task_mode === 2 ? 'auto' : d.cc_status.task_mode === 1 ? 'always'
+                : d.cc_status.task_mode === 3 ? 'never' : '-';
+  const cpuSusp = d.cc_status.task_suspend_reason > 0;
+  const gpuMode = d.cc_status.gpu_mode === 3 ? 'never' : d.cc_status.gpu_mode === 1 ? 'always'
+                : d.cc_status.gpu_mode === 2 ? 'auto' : '-';
+
+  meta.innerHTML = `
+    <span class="badge ${cpuSusp ? 'warn' : 'ok'}">CPU: ${cpuSusp ? 'suspended' : cpuMode}</span>
+    <span class="badge">GPU: ${gpuMode}</span>
+    <span class="badge ok">${d.summary.running} running</span>`;
+
+  const h = d.host;
+  const nameByUrl = {};
+  d.projects.forEach(p => { nameByUrl[p.master_url] = p.name; });
+
+  const runningTasks = d.results.filter(r => r.active_task_state === 1);
+  const sortedResults = [...d.results].sort((a, b) => taskSortKey(a) - taskSortKey(b));
+  const filteredResults = sortedResults.filter(r => taskMatchesFilter(r, taskFilter));
+  const otherCount = d.results.length - runningTasks.length;
+
+  const runningHtml = runningTasks.length
+    ? runningTasks.map(r => renderTaskRow(s, r, nameByUrl)).join('')
+    : `<div class="empty">No active tasks</div>`;
+
+  const allTasksHtml = filteredResults.length
+    ? filteredResults.map(r => renderTaskRow(s, r, nameByUrl)).join('')
+    : `<div class="empty">${taskFilter === 'all' ? 'No tasks' : 'No tasks in this filter'}</div>`;
+
+  const peek = runningTasks.length
+    ? `${runningTasks.length} running | ${d.results.length} tasks | ${d.projects.length} projects`
+    : `Idle | ${d.results.length} tasks | ${d.projects.length} projects`;
+
+  const projRows = d.projects.length ? d.projects.map(p => `
+    <tr>
+      <td><span class="proj-name">${esc(p.name)}</span>
+        ${p.dont_request_more_work ? '<span class="tag warn">no new work</span>' : ''}
+        ${p.suspended ? '<span class="tag bad">suspended</span>' : ''}
+      </td>
+      <td class="num">${p.njobs_success.toLocaleString()}</td>
+      <td class="num">${p.njobs_error}</td>
+      <td class="num">${fmtCredit(p.user_total_credit)}</td>
+      <td class="num">${p.user_expavg_credit.toFixed(1)}</td>
+      <td class="num"><button class="link-btn" onclick="ctl('${s.id}','project_update','${esc(p.master_url)}')">Update</button></td>
+    </tr>`).join('') : `<tr><td colspan="6" class="empty" style="border:none">No projects attached</td></tr>`;
+
+  body.innerHTML = `
+    <div class="server-peek">${peek}</div>
+    <details class="panel" id="panel-running-${s.id}"${panelOpen(s.id, 'running')}>
+      <summary>Running tasks | ${runningTasks.length}</summary>
+      <div class="panel-body"><div class="task-list">${runningHtml}</div></div>
+    </details>
+    <details class="panel" id="panel-tasks-${s.id}"${panelOpen(s.id, 'tasks')}>
+      <summary>All tasks | ${d.results.length}${otherCount ? ' (' + otherCount + ' other)' : ''}</summary>
+      <div class="panel-body">
+        <div class="task-filters">
+          <button type="button" class="${taskFilter==='all'?'active':''}" onclick="setTaskFilter('all')">All</button>
+          <button type="button" class="${taskFilter==='active'?'active':''}" onclick="setTaskFilter('active')">Running</button>
+          <button type="button" class="${taskFilter==='paused'?'active':''}" onclick="setTaskFilter('paused')">Paused</button>
+          <button type="button" class="${taskFilter==='other'?'active':''}" onclick="setTaskFilter('other')">Other</button>
+        </div>
+        <div class="task-list">${allTasksHtml}</div>
+      </div>
+    </details>
+    <details class="panel" id="panel-projects-${s.id}"${panelOpen(s.id, 'projects')}>
+      <summary>Projects | ${d.projects.length}</summary>
+      <div class="panel-body">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Project</th><th class="num">Done</th><th class="num">Errors</th>
+              <th class="num">Credit</th><th class="num">Avg/day</th><th></th>
+            </tr></thead>
+            <tbody>${projRows}</tbody>
+          </table>
+        </div>
+      </div>
+    </details>
+    <details class="panel" id="panel-host-${s.id}"${panelOpen(s.id, 'host')}>
+      <summary>Host info | ${h.p_ncpus} cores | ${fmtBytes(h.m_nbytes)} RAM</summary>
+      <div class="panel-body">
+        <div class="host-grid" style="margin-bottom:0">
+          <div class="host-chip"><div class="k">Operating system</div><div class="v">${esc(h.os_name||'?')} ${esc(h.os_version||'')}</div></div>
+          <div class="host-chip"><div class="k">Processor</div><div class="v">${h.p_ncpus} cores | ${esc((h.p_model||'').slice(0,36))}</div></div>
+          <div class="host-chip"><div class="k">Memory</div><div class="v">${fmtBytes(h.m_nbytes)}</div></div>
+          <div class="host-chip"><div class="k">Disk free</div><div class="v">${fmtBytes(h.d_free)} / ${fmtBytes(h.d_total)}</div></div>
+        </div>
+      </div>
+    </details>`;
+}
+
+async function ctl(id, op, project_url, name) {
+  try {
+    const r = await fetch(`/api/servers/${id}/control`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op, project_url, name })
+    });
+    if (!r.ok) {
+      const e = await r.json();
+      alert('Failed: ' + (e.error || 'unknown error'));
+    }
+    setTimeout(refreshAll, 600);
+  } catch (e) {
+    alert('Request failed');
+  }
+}
+
+async function removeServer(id, name) {
+  if (!confirm('Remove server "' + name + '" from the dashboard?')) return;
+  await fetch('/api/servers/' + id, { method: 'DELETE' });
+  loadServers();
+}
+
+function openModal() {
+  $('#overlay').classList.add('show');
+  $('#formerr').textContent = '';
+  $('#f_name').focus();
+}
+
+function closeModal() {
+  $('#overlay').classList.remove('show');
+  ['f_name', 'f_host', 'f_pass'].forEach(i => { $('#' + i).value = ''; });
+  $('#f_port').value = '31416';
+}
+
+$('#addBtn').onclick = openModal;
+$('#cancelBtn').onclick = closeModal;
+$('#overlay').onclick = e => { if (e.target.id === 'overlay') closeModal(); };
+
+$('#saveBtn').onclick = async () => {
+  const body = {
+    name: $('#f_name').value.trim(),
+    host: $('#f_host').value.trim(),
+    port: $('#f_port').value.trim() || '31416',
+    password: $('#f_pass').value
+  };
+  if (!body.host) { $('#formerr').textContent = 'Host is required'; return; }
+  $('#saveBtn').textContent = 'Testing...';
+  $('#saveBtn').disabled = true;
+  try {
+    const r = await fetch('/api/servers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (!r.ok) { $('#formerr').textContent = d.error || 'Failed'; }
+    else { closeModal(); loadServers(); }
+  } catch (e) {
+    $('#formerr').textContent = 'Request failed';
+  }
+  $('#saveBtn').textContent = 'Connect and save';
+  $('#saveBtn').disabled = false;
+};
+
+loadServers();
+setInterval(() => { if (servers.length) refreshAll(); }, 15000);
+</script>
+</body>
+</html>
